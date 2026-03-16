@@ -1,22 +1,25 @@
-use iced::{widget::{column, container, text}, Element, Task, Length};
+use iced::{
+    Element, Length, Task,
+    widget::{column, container, text},
+};
 use spacetraders_sdk::apis::{agents_api::get_agent, configuration::Configuration};
 
 #[derive(Debug, Clone)]
 pub enum Message {}
 
 pub struct State {
-    pub agent: Agent
+    pub agent: Agent,
 }
 
 #[derive(Default, serde::Deserialize, Debug, Clone)]
 pub struct Agent {
     #[allow(unused)]
-    account_id: Option<String>,
-    symbol: String,
-    headquarters: String,
-    credits: i64,
-    starting_faction: String,
-    ship_count: i32,
+    pub account_id: Option<String>,
+    pub symbol: String,
+    pub headquarters: String,
+    pub credits: i64,
+    pub starting_faction: String,
+    pub ship_count: i32,
 }
 
 impl From<Box<spacetraders_sdk::models::Agent>> for Agent {
@@ -27,7 +30,7 @@ impl From<Box<spacetraders_sdk::models::Agent>> for Agent {
             headquarters: sdk_agent.headquarters,
             credits: sdk_agent.credits,
             starting_faction: sdk_agent.starting_faction,
-            ship_count: sdk_agent.ship_count
+            ship_count: sdk_agent.ship_count,
         }
     }
 }
@@ -44,12 +47,15 @@ impl Agent {
         Task::none()
     }
 
-    pub fn view(state: &State) -> Element<'_, Message> {
+    pub fn view_agent_info(state: &State) -> Element<'_, Message> {
         let content = column![
             text(format!("Symbol:           {}", state.agent.symbol)),
             text(format!("Headquarters:     {}", state.agent.headquarters)),
             text(format!("Credits:          {}", state.agent.credits)),
-            text(format!("Starting Faction: {}", state.agent.starting_faction)),
+            text(format!(
+                "Starting Faction: {}",
+                state.agent.starting_faction
+            )),
             text(format!("Fleet Size:       {}", state.agent.ship_count)),
         ]
         .spacing(8);
@@ -61,4 +67,3 @@ impl Agent {
             .into()
     }
 }
-
