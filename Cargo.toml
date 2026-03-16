@@ -11,3 +11,4 @@ secrecy = "0.10.3"
 serde = "1.0.228"
 serde_json = "1.0.149"
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+spacetraders_sdk = { path = "api_spec/packages/spacetraders-sdk" }

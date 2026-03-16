@@ -1,9 +1,9 @@
-use spacetraders::components::{Agent, State};
+use spacetraders::components::{Agent, State, get_configuration};
 
 #[tokio::main]
 async fn main() {
-    let client = reqwest::Client::new();
-    let agent = Agent::new(&client).await.expect("failed to get agent");
+    let config = get_configuration().expect("failed to get configuration");
+    let agent = Agent::new(&config).await.expect("failed to get agent");
 
     iced::application(move ||
         State { agent: agent.clone() }, Agent::update, Agent::view)

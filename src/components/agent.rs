@@ -1,10 +1,5 @@
-use std::fs;
 use iced::{widget::{column, container, text}, Element, Task, Length};
-
-#[derive(serde::Deserialize)]
-struct ApiResponse<T> {
-    data: T,
-}
+use spacetraders_sdk::apis::{agents_api::get_agent, configuration::Configuration};
 
 #[derive(Debug, Clone)]
 pub enum Message {}
@@ -16,7 +11,7 @@ pub struct State {
 #[derive(Default, serde::Deserialize, Debug, Clone)]
 pub struct Agent {
     #[allow(unused)]
-    account_id: String,
+    account_id: Option<String>,
     symbol: String,
     headquarters: String,
     credits: i64,
@@ -24,17 +19,23 @@ pub struct Agent {
     ship_count: i32,
 }
 
+impl From<Box<spacetraders_sdk::models::Agent>> for Agent {
+    fn from(sdk_agent: Box<spacetraders_sdk::models::Agent>) -> Self {
+        Agent {
+            account_id: sdk_agent.account_id,
+            symbol: sdk_agent.symbol,
+            headquarters: sdk_agent.headquarters,
+            credits: sdk_agent.credits,
+            starting_faction: sdk_agent.starting_faction,
+            ship_count: sdk_agent.ship_count
+        }
+    }
+}
+
 impl Agent {
-    pub async fn new(client: &reqwest::Client) -> anyhow::Result<Agent> {
-        let agent_token = fs::read_to_string(".secret")?;
-
-        let response = client
-            .get("https://api.spacetraders.io/v2/my/agent")
-            .bearer_auth(agent_token)
-            .send()
-            .await?;
-
-        let agent = response.json::<ApiResponse<Agent>>().await?.data;
+    pub async fn new(config: &Configuration) -> anyhow::Result<Agent> {
+        let agent_request = get_agent(config, "LIGHT_BASIN").await?;
+        let agent = agent_request.data.into();
 
         Ok(agent)
     }
