@@ -1,6 +1,9 @@
 use iced::{
-    Element, Length, Task,
-    widget::{Column, column, container, row, scrollable, text},
+    Element, Length, Task, Color,
+    widget::{
+        Column, column, container, row, scrollable, text, button, stack, opaque,
+        mouse_area, Space
+    },
 };
 
 use spacetraders_sdk::apis::{
@@ -18,6 +21,8 @@ pub enum Message {
     ShipsLoaded(Result<Vec<Ship>, String>),
     ContractsLoaded(Result<Vec<Contract>, String>),
     WaypointsLoaded(Result<Vec<Waypoint>, String>),
+    SelectContract(usize),
+    CloseOverlay,
 }
 
 pub struct Home {
@@ -27,6 +32,7 @@ pub struct Home {
     pub contracts: Vec<Contract>,
     pub waypoints: Vec<Waypoint>,
     pub error: Option<String>,
+    pub selected_contract: Option<usize>,
 }
 
 impl Home {
@@ -38,6 +44,7 @@ impl Home {
             contracts: vec![],
             waypoints: vec![],
             error: None,
+            selected_contract: None,
         };
         (state, Task::done(Message::Init))
     }
@@ -111,6 +118,16 @@ impl Home {
                 }
                 Task::none()
             }
+
+            Message::SelectContract(i) => {
+                self.selected_contract = Some(i);
+                Task::none()
+            }
+
+            Message::CloseOverlay => {
+                self.selected_contract = None;
+                Task::none()
+            }
         }
     }
 
@@ -173,7 +190,30 @@ impl Home {
                 .spacing(8)
                 .into()
         } else {
-            content.into()
+            if let Some(idx) = self.selected_contract {
+                let contract = &self.contracts[idx];
+                stack![
+                    content,
+                    opaque(
+                        mouse_area(
+                            container(Space::new())
+                                .width(Length::Fill)
+                                .height(Length::Fill)
+                                .style(|_theme| container::Style {
+                                    background: Some(Color::from_rgba(0.0, 0.0, 0.0, 0.5).into()),
+                                    ..Default::default()
+                                })
+                        ).on_press(Message::CloseOverlay)
+                    ),
+                    opaque(
+                        container(contract_detail(contract))
+                            .center(Length::Fill)
+                    )
+                ]
+                .into()
+            } else {
+                content.into()
+            }
         }
     }
 }
@@ -181,26 +221,20 @@ impl Home {
 fn ship_list(ships: &[Ship]) -> Column<'_, Message> {
     ships.iter().fold(Column::new().spacing(8), |col, ship| {
         col.push(text(format!(
-            "{} - {} @ {}",
-            ship.symbol, ship.registration.role, ship.nav.waypoint_symbol,
-        )))
+            "{}", ship.symbol
+        )).size(16)).push(text(format!("{} @ {}",
+        ship.registration.role, ship.nav.waypoint_symbol)).size(12))
     })
 }
 
 fn contract_list(contracts: &[Contract]) -> Column<'_, Message> {
-    contracts.iter().fold(Column::new().spacing(8), |col, c| {
-        let status = if c.fulfilled {
-            "fulfilled"
-        } else if c.accepted {
-            "active"
-        } else {
-            "available"
-        };
-
-        col.push(text(format!(
-            "[{}] {} - {:?}",
-            status, c.faction_symbol, c.r#type
-        )))
+    contracts.iter().enumerate().fold(Column::new().spacing(8), |col, (i, c) | {
+        let status = if c.fulfilled { "fullfilled" } else if c.accepted { "active" } else { "avaiable" };
+        col.push(
+            button(text(format!("[{}] {} - {:?}", status, c.faction_symbol, c.r#type)))
+                .on_press(Message::SelectContract(i))
+                .style(button::text)
+        )
     })
 }
 
@@ -212,4 +246,27 @@ fn waypoint_list(waypoints: &[Waypoint]) -> Column<'_, Message> {
 
 fn headquarters_to_system(hq: &str) -> String {
     hq.rsplitn(2, '-').last().unwrap_or(hq).to_string()
+}
+
+fn contract_detail(contract: &Contract) -> Column<'_, Message> {
+    let mut col = column![
+        text(format!("Faction: {}", contract.faction_symbol)),
+        text(format!("Type: {:?}", contract.r#type)),
+        text(format!("Status: {}", if contract.fulfilled { "Fulfilled" } else if contract.accepted { "Active" } else { "Available" })),
+        text(format!("Deadline: {}", contract.terms.deadline)),
+        text(format!("On Accept:  {} credits", contract.terms.payment.on_accepted)),
+        text(format!("On Fulfill: {} credits", contract.terms.payment.on_fulfilled)),
+    ]
+    .spacing(6);
+
+    if let Some(deliveries) = &contract.terms.deliver {
+        col = col.push(text("Deliveries: ").size(14));
+        for d in deliveries {
+            col = col.push(text(format!(
+                "   {} → {} ({}/{})",
+                d.trade_symbol, d.destination_symbol, d.units_fulfilled, d.units_required
+            )));
+        }
+    }
+    col.push(button(text("Close")).on_press(Message::CloseOverlay))
 }
